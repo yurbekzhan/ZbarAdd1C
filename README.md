@@ -114,31 +114,3 @@ ctest --test-dir build-vs/secondary-x86-143 -C Release --output-on-failure
 `1CGetImageFragment`; их происхождение — `third_party/1c/README.md`.
 Пример старый, с интерфейсом локализации `SetLocale`; для конкретной версии 1С
 рекомендуется сверка с её SDK. Веб-клиент и мобильная платформа не проверялись.
-
-## Зависимости и лицензии
-
-Версии, коммиты, лицензии и схема сборки —
-[third_party/sources/README.md](third_party/sources/README.md).
-ZBar — LGPL-2.1-or-later; пакет сохраняет лицензии и полные исходники компоненты
-и зависимостей для возможности изменения и перелинковки. Сохраняйте эти материалы
-при передаче пакета. Готовая DLL из старого x86-примера не используется.
-
-## Проверка ядра на Linux
-
-```sh
-sudo apt-get install build-essential cmake uuid-dev
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j 2
-ctest --test-dir build --output-on-failure
-```
-
-Зависимости изображений здесь тоже собираются из включённых исходников; Windows ZIP
-создаётся только на Windows. Для системных ZBar/libpng можно явно указать
-`-DZBAR1C_BUNDLED_DEPS=OFF` и установить их development-пакеты.
-
-Python нужен только для пересоздания уже сохранённых PNG-фикстур:
-
-```sh
-python -m pip install -r tests/requirements.txt
-python tests/generate_fixtures.py
-```
