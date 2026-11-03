@@ -1,0 +1,7 @@
+LIBRARY ZbarAdd1C
+EXPORTS
+    GetClassNames
+    GetClassObject
+    DestroyObject
+    SetPlatformCapabilities
+    GetAttachType

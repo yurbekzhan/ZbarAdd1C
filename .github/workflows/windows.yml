@@ -13,7 +13,7 @@ jobs:
           & cmake --build build --config Release --parallel 2 2>&1 | Tee-Object -Variable buildOutput
           $buildExitCode = $LASTEXITCODE
           if ($buildExitCode -ne 0) {
-            $buildOutput | Where-Object { $_ -match '(?i)(error|fatal|failed)' } | Select-Object -First 15 | ForEach-Object { Write-Output "::error::$_" }
+            $buildOutput | Where-Object { $_ -match '(?i)(error (?:C|LNK)[0-9]+|fatal error|FAILED:|CMake Error)' } | Select-Object -First 15 | ForEach-Object { Write-Output "::error::$_" }
             exit $buildExitCode
           }
       - name: Functional and Native API tests

@@ -159,7 +159,7 @@ bool Component::CallAsFunc(long method, tVariant* result, tVariant* args, long c
 }
 
 #if defined(_WIN32)
-#define ZBAR1C_EXPORT __declspec(dllexport)
+#define ZBAR1C_EXPORT // Exported via resources/exports.def, matching SDK declarations.
 #else
 #define ZBAR1C_EXPORT __attribute__((visibility("default")))
 #endif

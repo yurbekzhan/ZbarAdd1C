@@ -1,7 +1,5 @@
 #pragma once
-#include "ComponentBase.h"
-#include "IMemoryManager.h"
-#include "AddInDefBase.h"
+#include "zbar1c/sdk.hpp"
 #include <string>
 
 namespace zbar1c {
