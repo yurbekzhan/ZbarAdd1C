@@ -94,7 +94,7 @@ if(WIN32 AND ZBAR1C_BUNDLED_DEPS)
       "-DSINGLE_MANIFEST=${CMAKE_CURRENT_BINARY_DIR}/Manifest.xml")
   if(ZBAR1C_DUAL_ARCH)
     if(NOT MSVC)
-      message(FATAL_ERROR "Dual architecture builds require MSVC and Visual Studio 2022")
+      message(FATAL_ERROR "Dual architecture builds require MSVC and Visual Studio")
     endif()
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
       set(other_platform Win32)
@@ -103,10 +103,13 @@ if(WIN32 AND ZBAR1C_BUNDLED_DEPS)
       set(other_platform x64)
       set(other_arch x64)
     endif()
-    set(other_build "${CMAKE_BINARY_DIR}/other-${other_arch}")
+    include(cmake/SelectVisualStudio.cmake)
+    select_secondary_visual_studio()
+    # A separate directory avoids old caches retaining a previously forced v143.
+    set(other_build "${CMAKE_BINARY_DIR}/secondary-${other_arch}-${MSVC_TOOLSET_VERSION}")
     add_custom_target(build_other_arch
       COMMAND "${CMAKE_COMMAND}" -S "${CMAKE_SOURCE_DIR}" -B "${other_build}"
-        -G "Visual Studio 17 2022" -A "${other_platform}"
+        ${ZBAR1C_SECONDARY_VS_ARGUMENTS} -A "${other_platform}"
         -DZBAR1C_DUAL_ARCH=OFF -DZBAR1C_BUNDLED_DEPS=ON "-DBUILD_TESTING=${BUILD_TESTING}"
       COMMAND "${CMAKE_COMMAND}" --build "${other_build}" --config "$<CONFIG>" --parallel 2
       VERBATIM)

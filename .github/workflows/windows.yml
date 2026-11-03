@@ -3,10 +3,25 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        generator: [msbuild, ninja]
     steps:
       - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.generator == 'ninja'
+        with:
+          arch: x64
       - name: Configure MSVC x64
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DZBAR1C_DUAL_ARCH=ON
+        shell: pwsh
+        run: |
+          if ('${{ matrix.generator }}' -eq 'ninja') {
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DZBAR1C_DUAL_ARCH=ON
+          } else {
+            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DZBAR1C_DUAL_ARCH=ON
+          }
+          exit $LASTEXITCODE
       - name: Build component and bundled dependencies
         shell: pwsh
         run: |
@@ -28,7 +43,9 @@ jobs:
       - name: Test x86
         shell: pwsh
         run: |
-          & ctest --test-dir build/other-x86 -C Release --output-on-failure 2>&1 | Tee-Object -Variable testOutput
+          $other = Get-ChildItem build/secondary-x86-* -Directory | Select-Object -First 1
+          if (-not $other) { throw "Missing x86 build directory" }
+          & ctest --test-dir $other.FullName -C Release --output-on-failure 2>&1 | Tee-Object -Variable testOutput
           $testExitCode = $LASTEXITCODE
           if ($testExitCode -ne 0) {
             $testOutput | Select-Object -Last 50 | ForEach-Object { Write-Output "::error::$_" }
@@ -58,7 +75,9 @@ jobs:
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
-          foreach ($dll in @("build/Release/ZbarAdd1C.dll", "build/other-x86/Release/ZbarAdd1C.dll")) {
+          $primary = if (Test-Path build/Release/ZbarAdd1C.dll) { "build/Release/ZbarAdd1C.dll" } else { "build/ZbarAdd1C.dll" }
+          $other = Get-ChildItem build/secondary-x86-* -Directory | Select-Object -First 1
+          foreach ($dll in @($primary, "$($other.FullName)/Release/ZbarAdd1C.dll")) {
           $result = & $dumpbin.FullName /dependents $dll
           $result
           if ($LASTEXITCODE -ne 0) { throw "dumpbin failed" }
@@ -66,5 +85,5 @@ jobs:
           }
       - uses: actions/upload-artifact@v4
         with:
-          name: ZbarAdd1C-windows
+          name: ZbarAdd1C-windows-${{ matrix.generator }}
           path: build/dist/Release/ZbarAdd1C-windows.zip

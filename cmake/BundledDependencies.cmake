@@ -41,10 +41,28 @@ set(zbar_sources config.c error.c symbol.c image.c convert.c refcnt.c
     qrcode/qrdectxt.c qrcode/rs.c qrcode/isaac.c qrcode/bch15_5.c
     qrcode/binarize.c qrcode/util.c)
 list(TRANSFORM zbar_sources PREPEND "${zbar_SOURCE_DIR}/zbar/")
+# Portable pointer offset: upstream casts addresses to 32-bit long on Win64.
+file(READ "${zbar_SOURCE_DIR}/zbar/decoder.c" decoder_source)
+set(old_reset "memset(dcode, 0, (long)&dcode->buf_alloc - (long)dcode);")
+string(FIND "${decoder_source}" "${old_reset}" offset)
+if(offset EQUAL -1)
+  message(FATAL_ERROR "ZBar decoder reset patch no longer matches the pinned source")
+endif()
+string(REPLACE "${old_reset}" "memset(dcode, 0, offsetof(zbar_decoder_t, buf_alloc));" decoder_source "${decoder_source}")
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/_deps/zbar-config")
+file(WRITE "${PROJECT_BINARY_DIR}/_deps/zbar-config/decoder.c" "#include <stddef.h>\n${decoder_source}")
+list(REMOVE_ITEM zbar_sources "${zbar_SOURCE_DIR}/zbar/decoder.c")
+list(APPEND zbar_sources "${PROJECT_BINARY_DIR}/_deps/zbar-config/decoder.c")
+# Our C++ implementation uses the C API only; don't pull in deprecated, unused
+# Processor/Video/Window C++ wrappers from upstream's umbrella header.
+file(READ "${zbar_SOURCE_DIR}/include/zbar.h" zbar_header)
+string(REGEX REPLACE "#include \"zbar/[^\"]+\"" "" zbar_header "${zbar_header}")
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/_deps/zbar-api")
+file(WRITE "${PROJECT_BINARY_DIR}/_deps/zbar-api/zbar.h" "${zbar_header}")
 configure_file("${PROJECT_SOURCE_DIR}/cmake/zbar_config.h.in"
                "${PROJECT_BINARY_DIR}/_deps/zbar-config/config.h")
 add_library(bundled_zbar STATIC ${zbar_sources})
-target_include_directories(bundled_zbar PUBLIC "${zbar_SOURCE_DIR}/include"
+target_include_directories(bundled_zbar PUBLIC "${PROJECT_BINARY_DIR}/_deps/zbar-api" "${zbar_SOURCE_DIR}/include"
     PRIVATE "${zbar_SOURCE_DIR}/zbar" "${PROJECT_BINARY_DIR}/_deps/zbar-config")
 set_target_properties(bundled_zbar PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON)
 if(WIN32)

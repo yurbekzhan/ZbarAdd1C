@@ -17,7 +17,9 @@ image scanner and QR decoder: camera, GUI, D-Bus and other barcode types are not
 built. libpng uses its upstream prebuilt feature configuration, with optional
 CPU-specific SIMD disabled. Windows encoding conversion uses static win-iconv
 (Windows code pages), while Linux uses system iconv. This is a custom build
-integration; upstream source files are not patched. A separate Windows shim
+integration; upstream archives are not modified. Generated build copies replace the Win64
+pointer-to-long subtraction in decoder reset with `offsetof` and omit unused
+C++ wrapper includes from the public C API header. A separate Windows shim
 (`cmake/win_iconv_compat.c`) maps ZBar's `BIG-5` alias to win-iconv's `BIG5` and
 returns EBADF for invalid conversion descriptors instead of dereferencing them.
 

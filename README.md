@@ -18,8 +18,12 @@
 проверяются SHA256 и собираются тем же компилятором вместе с проектом.
 После установки инструментов Visual Studio сборка не требует Интернета.
 Установите инструменты MSVC сразу для x86 и x64 (стандартный компонент x64/x86).
+Поддерживается MSVC из установленной Visual Studio: при сборке второй архитектуры
+используются та же установка VS и тот же набор инструментов, что и в основной
+сборке (без принудительного требования v143). Для новых версий VS нужны
+соответствующие актуальные средства CMake.
 Основная конфигурация собирает x64, затем автоматически запускает MSBuild для
-x86 в отдельном каталоге `other-x86`; вручную переключать архитектуру не нужно.
+x86 в отдельном каталоге `secondary-x86-<toolset>`; вручную переключать архитектуру не нужно.
 Доступны и отдельные конфигурации `windows-x86-release` и `windows-x64-release`.
 
 Результаты обычной сборки:
@@ -48,12 +52,12 @@ cmake -S . -B build-vs -G "Visual Studio 17 2022" -A x64 -DZBAR1C_DUAL_ARCH=ON
 
 Откройте `build-vs/ZbarAdd1C.sln`, выберите **Release / x64**, выполните
 **Собрать решение**. DLL и ZIP будут в `build-vs/dist/Release`.
-Для командной строки сборка и тестирование:
+Для командной строки сборка и тестирование (143 в пути — номер toolset; для другой версии используйте созданный каталог `secondary-x86-*`):
 
 ```bat
 cmake --build build-vs --config Release --parallel 2
 ctest --test-dir build-vs -C Release --output-on-failure
-ctest --test-dir build-vs/other-x86 -C Release --output-on-failure
+ctest --test-dir build-vs/secondary-x86-143 -C Release --output-on-failure
 ```
 
 В **Обозревателе тестов** Visual Studio также доступны `qr_reader` и `native_api`.
