@@ -1,20 +1,30 @@
 cmake_minimum_required(VERSION 3.20)
 cmake_policy(SET CMP0091 NEW)
-project(ZbarAdd1C VERSION 0.1.0 LANGUAGES CXX)
+project(ZbarAdd1C VERSION 0.1.0 LANGUAGES C CXX)
 if(MSVC)
   add_compile_options(/utf-8)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-find_package(PNG REQUIRED)
-find_path(ZBAR_INCLUDE_DIR NAMES zbar.h REQUIRED)
-find_library(ZBAR_LIBRARY NAMES zbar libzbar REQUIRED)
+option(ZBAR1C_BUNDLED_DEPS "Build dependencies from the included source archives" ON)
+if(ZBAR1C_BUNDLED_DEPS)
+  include(cmake/BundledDependencies.cmake)
+else()
+  find_package(PNG REQUIRED)
+  find_path(ZBAR_INCLUDE_DIR NAMES zbar.h REQUIRED)
+  find_library(ZBAR_LIBRARY NAMES zbar libzbar REQUIRED)
+  add_library(system_zbar UNKNOWN IMPORTED)
+  set_target_properties(system_zbar PROPERTIES IMPORTED_LOCATION "${ZBAR_LIBRARY}"
+      INTERFACE_INCLUDE_DIRECTORIES "${ZBAR_INCLUDE_DIR}")
+  set(QR_PNG_TARGET PNG::PNG)
+  set(QR_ZBAR_TARGET system_zbar)
+endif()
 
 add_library(qr_core STATIC src/qr_reader.cpp)
 target_compile_features(qr_core PUBLIC cxx_std_17)
 set_target_properties(qr_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_include_directories(qr_core PUBLIC include PRIVATE ${ZBAR_INCLUDE_DIR})
-target_link_libraries(qr_core PRIVATE PNG::PNG ${ZBAR_LIBRARY})
+target_include_directories(qr_core PUBLIC include)
+target_link_libraries(qr_core PRIVATE ${QR_PNG_TARGET} ${QR_ZBAR_TARGET})
 if(MSVC)
   target_compile_options(qr_core PRIVATE /W4 /utf-8)
 else()
@@ -63,4 +73,17 @@ if(BUILD_TESTING)
   endif()
   add_dependencies(native_api_tests ZbarAdd1C)
   add_test(NAME native_api COMMAND native_api_tests "$<TARGET_FILE:ZbarAdd1C>" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
+endif()
+
+if(WIN32 AND ZBAR1C_BUNDLED_DEPS)
+  add_custom_target(package_win64 ALL
+    COMMAND "${CMAKE_COMMAND}"
+      "-DCOMPONENT=$<TARGET_FILE:ZbarAdd1C>"
+      "-DDESTINATION=${CMAKE_BINARY_DIR}/dist/$<CONFIG>"
+      "-DSOURCE=${CMAKE_SOURCE_DIR}"
+      "-DDEPENDENCIES=${CMAKE_BINARY_DIR}/_deps"
+      -P "${CMAKE_SOURCE_DIR}/cmake/PackageWindows.cmake"
+    DEPENDS ZbarAdd1C
+    COMMENT "Prepare DLL, 1C Manifest.xml and ZIP bundle"
+    VERBATIM)
 endif()

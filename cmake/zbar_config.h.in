@@ -1,0 +1,22 @@
+/* Generated configuration for the PNG-only QR scanner subset of ZBar. */
+#pragma once
+#define ENABLE_QRCODE 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_STDINT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRING_H 1
+#define HAVE_ERRNO_H 1
+#define HAVE_MEMSET 1
+#define HAVE_UINTPTR_T 1
+#define HAVE_ICONV 1
+#define ICONV_CONST
+#define ZBAR_VERSION_MAJOR 0
+#define ZBAR_VERSION_MINOR 23
+#define ZBAR_VERSION_PATCH 93
+#define PACKAGE_VERSION "0.23.93"
+#define VERSION "0.23.93"
+#define PACKAGE "zbar"
+#define X_DISPLAY_MISSING 1
+#ifdef _MSC_VER
+#define inline __inline
+#endif

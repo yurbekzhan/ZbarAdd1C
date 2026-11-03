@@ -1,0 +1,75 @@
+# Build the required image/QR subset from complete, pinned upstream sources.
+# Archives are included in the repository: configuration requires no network.
+function(unpack_dependency name archive sha root)
+  set(path "${PROJECT_SOURCE_DIR}/third_party/sources/${archive}")
+  file(SHA256 "${path}" actual)
+  if(NOT actual STREQUAL sha)
+    message(FATAL_ERROR "SHA256 mismatch: ${archive}")
+  endif()
+  set(destination "${PROJECT_BINARY_DIR}/_deps/${name}")
+  if(NOT EXISTS "${destination}/.extracted-${sha}")
+    file(MAKE_DIRECTORY "${destination}")
+    file(ARCHIVE_EXTRACT INPUT "${path}" DESTINATION "${destination}")
+    file(WRITE "${destination}/.extracted-${sha}" "${sha}\n")
+  endif()
+  set(${name}_SOURCE_DIR "${destination}/${root}" PARENT_SCOPE)
+endfunction()
+
+unpack_dependency(zlib zlib-1.3.1.tar.gz 44d61e373bf9c3cf99b5cd16e9dffbd91685a73daaf56a271be9075680545c93 zlib)
+unpack_dependency(png libpng-1.6.48.tar.gz e4422d010ead9663942adc30c865bf583244ab3cb018ec18c6f316f8f59b3103 libpng)
+unpack_dependency(zbar zbar-0.23.93.tar.gz 67074b09e3720ce652d3eac3aaf6e509ef66f5d60b29779d154b0525e567d3bf zbar)
+
+set(zlib_sources adler32.c compress.c crc32.c deflate.c infback.c inffast.c
+    inflate.c inftrees.c trees.c uncompr.c zutil.c)
+list(TRANSFORM zlib_sources PREPEND "${zlib_SOURCE_DIR}/")
+add_library(bundled_zlib STATIC ${zlib_sources})
+target_include_directories(bundled_zlib PUBLIC "${zlib_SOURCE_DIR}")
+
+set(png_sources png.c pngerror.c pngget.c pngmem.c pngpread.c pngread.c pngrio.c
+    pngrtran.c pngrutil.c pngset.c pngtrans.c pngwio.c pngwrite.c pngwtran.c pngwutil.c)
+list(TRANSFORM png_sources PREPEND "${png_SOURCE_DIR}/")
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/_deps/png-config")
+configure_file("${png_SOURCE_DIR}/scripts/pnglibconf.h.prebuilt"
+               "${PROJECT_BINARY_DIR}/_deps/png-config/pnglibconf.h" COPYONLY)
+add_library(bundled_png STATIC ${png_sources})
+target_include_directories(bundled_png PUBLIC "${png_SOURCE_DIR}" "${PROJECT_BINARY_DIR}/_deps/png-config")
+target_compile_definitions(bundled_png PRIVATE PNG_INTEL_SSE_OPT=0 PNG_ARM_NEON_OPT=0 PNG_POWERPC_VSX_OPT=0 PNG_MIPS_MSA_OPT=0)
+target_link_libraries(bundled_png PUBLIC bundled_zlib)
+
+set(zbar_sources config.c error.c symbol.c image.c convert.c refcnt.c
+    img_scanner.c scanner.c decoder.c decoder/qr_finder.c qrcode/qrdec.c
+    qrcode/qrdectxt.c qrcode/rs.c qrcode/isaac.c qrcode/bch15_5.c
+    qrcode/binarize.c qrcode/util.c)
+list(TRANSFORM zbar_sources PREPEND "${zbar_SOURCE_DIR}/zbar/")
+configure_file("${PROJECT_SOURCE_DIR}/cmake/zbar_config.h.in"
+               "${PROJECT_BINARY_DIR}/_deps/zbar-config/config.h")
+add_library(bundled_zbar STATIC ${zbar_sources})
+target_include_directories(bundled_zbar PUBLIC "${zbar_SOURCE_DIR}/include"
+    PRIVATE "${zbar_SOURCE_DIR}/zbar" "${PROJECT_BINARY_DIR}/_deps/zbar-config")
+set_target_properties(bundled_zbar PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON)
+if(WIN32)
+  unpack_dependency(winiconv win-iconv-0.0.8.tar.gz 8fe8de7a3bf273f5989ceb138d2ab66733bd88e4b217a83e8b3a9a0b1d669488 win-iconv)
+  add_library(bundled_iconv STATIC "${winiconv_SOURCE_DIR}/win_iconv.c")
+  target_include_directories(bundled_iconv PUBLIC "${winiconv_SOURCE_DIR}")
+  target_link_libraries(bundled_zbar PRIVATE bundled_iconv winmm)
+else()
+  find_package(Iconv REQUIRED)
+  find_package(Threads REQUIRED)
+  target_compile_definitions(bundled_zbar PRIVATE HAVE_SYS_TIME_H=1 HAVE_UNISTD_H=1 HAVE_LIBPTHREAD=1)
+  target_link_libraries(bundled_zbar PRIVATE Iconv::Iconv Threads::Threads m)
+  target_link_libraries(bundled_png PUBLIC m)
+endif()
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
+  target_compile_options(bundled_zbar PRIVATE -fgnu89-inline)
+endif()
+foreach(target bundled_zlib bundled_png bundled_zbar)
+  set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  if(MSVC)
+    target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
+  endif()
+endforeach()
+if(TARGET bundled_iconv AND MSVC)
+  target_compile_definitions(bundled_iconv PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+set(QR_PNG_TARGET bundled_png)
+set(QR_ZBAR_TARGET bundled_zbar)

@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {"major": 3, "minor": 20, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "windows-x64-release",
+      "displayName": "Windows x64 Release (all dependencies included)",
+      "generator": "Ninja",
+      "architecture": {"value": "x64", "strategy": "external"},
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "ZBAR1C_BUNDLED_DEPS": "ON", "BUILD_TESTING": "ON"}
+    }
+  ],
+  "buildPresets": [{"name": "windows-x64-release", "configurePreset": "windows-x64-release"}],
+  "testPresets": [{"name": "windows-x64-release", "configurePreset": "windows-x64-release", "output": {"outputOnFailure": true}}]
+}

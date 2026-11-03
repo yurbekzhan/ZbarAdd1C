@@ -1,0 +1,27 @@
+name: Windows x64
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure MSVC x64
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build component and bundled dependencies
+        run: cmake --build build --config Release --parallel 2
+      - name: Functional and Native API tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Check DLL dependencies
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          $result = & $dumpbin.FullName /dependents build/Release/ZbarAdd1C.dll
+          $result
+          if ($LASTEXITCODE -ne 0) { throw "dumpbin failed" }
+          if ($result -match '(?i)(zbar|png|zlib|iconv|vcruntime|msvcp)[^\s]*\.dll') { throw "Unexpected dependency DLL" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZbarAdd1C-win64
+          path: build/dist/Release/ZbarAdd1C-win64.zip
