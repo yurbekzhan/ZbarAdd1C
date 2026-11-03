@@ -1,4 +1,4 @@
-name: Windows x64
+name: Windows x86 and x64
 on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
@@ -6,7 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure MSVC x64
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DZBAR1C_DUAL_ARCH=ON
       - name: Build component and bundled dependencies
         shell: pwsh
         run: |
@@ -20,6 +20,15 @@ jobs:
         shell: pwsh
         run: |
           & ctest --test-dir build -C Release --output-on-failure 2>&1 | Tee-Object -Variable testOutput
+          $testExitCode = $LASTEXITCODE
+          if ($testExitCode -ne 0) {
+            $testOutput | Select-Object -Last 50 | ForEach-Object { Write-Output "::error::$_" }
+            exit $testExitCode
+          }
+      - name: Test x86
+        shell: pwsh
+        run: |
+          & ctest --test-dir build/other-x86 -C Release --output-on-failure 2>&1 | Tee-Object -Variable testOutput
           $testExitCode = $LASTEXITCODE
           if ($testExitCode -ne 0) {
             $testOutput | Select-Object -Last 50 | ForEach-Object { Write-Output "::error::$_" }
@@ -49,11 +58,13 @@ jobs:
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
-          $result = & $dumpbin.FullName /dependents build/Release/ZbarAdd1C.dll
+          foreach ($dll in @("build/Release/ZbarAdd1C.dll", "build/other-x86/Release/ZbarAdd1C.dll")) {
+          $result = & $dumpbin.FullName /dependents $dll
           $result
           if ($LASTEXITCODE -ne 0) { throw "dumpbin failed" }
           if ($result -match '(?i)^\s+(?:(?:lib)?(?:zbar|png|zlib|iconv)|vcruntime|msvcp)[^\s]*\.dll\s*$') { throw "Unexpected dependency DLL" }
+          }
       - uses: actions/upload-artifact@v4
         with:
-          name: ZbarAdd1C-win64
-          path: build/dist/Release/ZbarAdd1C-win64.zip
+          name: ZbarAdd1C-windows
+          path: build/dist/Release/ZbarAdd1C-windows.zip

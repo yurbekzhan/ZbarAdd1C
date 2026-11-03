@@ -1,17 +1,110 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": {"major": 3, "minor": 20, "patch": 0},
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
   "configurePresets": [
+    {
+      "name": "windows-all-release",
+      "displayName": "Windows x86 + x64 Release (universal 1C package)",
+      "generator": "Ninja",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ZBAR1C_BUNDLED_DEPS": "ON",
+        "BUILD_TESTING": "ON",
+        "ZBAR1C_DUAL_ARCH": "ON"
+      }
+    },
     {
       "name": "windows-x64-release",
       "displayName": "Windows x64 Release (all dependencies included)",
       "generator": "Ninja",
-      "architecture": {"value": "x64", "strategy": "external"},
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
       "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "ZBAR1C_BUNDLED_DEPS": "ON", "BUILD_TESTING": "ON"}
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ZBAR1C_BUNDLED_DEPS": "ON",
+        "BUILD_TESTING": "ON",
+        "ZBAR1C_DUAL_ARCH": "OFF"
+      }
+    },
+    {
+      "name": "windows-x86-release",
+      "displayName": "Windows x86 Release",
+      "generator": "Ninja",
+      "architecture": {
+        "value": "x86",
+        "strategy": "external"
+      },
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ZBAR1C_BUNDLED_DEPS": "ON",
+        "BUILD_TESTING": "ON",
+        "ZBAR1C_DUAL_ARCH": "OFF"
+      }
     }
   ],
-  "buildPresets": [{"name": "windows-x64-release", "configurePreset": "windows-x64-release"}],
-  "testPresets": [{"name": "windows-x64-release", "configurePreset": "windows-x64-release", "output": {"outputOnFailure": true}}]
+  "buildPresets": [
+    {
+      "name": "windows-all-release",
+      "configurePreset": "windows-all-release"
+    },
+    {
+      "name": "windows-x64-release",
+      "configurePreset": "windows-x64-release"
+    },
+    {
+      "name": "windows-x86-release",
+      "configurePreset": "windows-x86-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-all-release",
+      "configurePreset": "windows-all-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-x64-release",
+      "configurePreset": "windows-x64-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-x86-release",
+      "configurePreset": "windows-x86-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
 }

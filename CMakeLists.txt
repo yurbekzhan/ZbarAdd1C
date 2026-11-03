@@ -45,6 +45,17 @@ set_target_properties(ZbarAdd1C PROPERTIES PREFIX "" CXX_VISIBILITY_PRESET hidde
 if(WIN32)
   target_sources(ZbarAdd1C PRIVATE resources/exports.def)
   enable_language(RC)
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(ZBAR1C_ARCH x64)
+    set(ZBAR1C_MANIFEST_ARCH amd64)
+    set(ZBAR1C_BUNDLE_ARCH x86_64)
+  else()
+    set(ZBAR1C_ARCH x86)
+    set(ZBAR1C_MANIFEST_ARCH x86)
+    set(ZBAR1C_BUNDLE_ARCH i386)
+  endif()
+  configure_file(resources/component.manifest "${CMAKE_CURRENT_BINARY_DIR}/component.manifest" @ONLY)
+  configure_file(resources/Manifest.single.xml.in "${CMAKE_CURRENT_BINARY_DIR}/Manifest.xml" @ONLY)
   configure_file(resources/component.rc.in component.rc @ONLY)
   target_sources(ZbarAdd1C PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/component.rc")
   if(MSVC)
@@ -55,9 +66,7 @@ else()
   find_path(UUID_INCLUDE_DIR uuid/uuid.h REQUIRED)
   target_include_directories(ZbarAdd1C PRIVATE ${UUID_INCLUDE_DIR})
 endif()
-if(WIN32 AND NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  message(FATAL_ERROR "The selected Windows target must be x64")
-endif()
+
 
 include(CTest)
 if(BUILD_TESTING)
@@ -76,15 +85,42 @@ if(BUILD_TESTING)
   add_test(NAME native_api COMMAND native_api_tests "$<TARGET_FILE:ZbarAdd1C>" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 endif()
 
+option(ZBAR1C_DUAL_ARCH "Build and package both Windows x86 and x64" OFF)
 if(WIN32 AND ZBAR1C_BUNDLED_DEPS)
-  add_custom_target(package_win64 ALL
-    COMMAND "${CMAKE_COMMAND}"
+  set(package_dependencies ZbarAdd1C)
+  set(package_arguments
       "-DCOMPONENT=$<TARGET_FILE:ZbarAdd1C>"
+      "-DARCH=${ZBAR1C_ARCH}"
+      "-DSINGLE_MANIFEST=${CMAKE_CURRENT_BINARY_DIR}/Manifest.xml")
+  if(ZBAR1C_DUAL_ARCH)
+    if(NOT MSVC)
+      message(FATAL_ERROR "Dual architecture builds require MSVC and Visual Studio 2022")
+    endif()
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      set(other_platform Win32)
+      set(other_arch x86)
+    else()
+      set(other_platform x64)
+      set(other_arch x64)
+    endif()
+    set(other_build "${CMAKE_BINARY_DIR}/other-${other_arch}")
+    add_custom_target(build_other_arch
+      COMMAND "${CMAKE_COMMAND}" -S "${CMAKE_SOURCE_DIR}" -B "${other_build}"
+        -G "Visual Studio 17 2022" -A "${other_platform}"
+        -DZBAR1C_DUAL_ARCH=OFF -DZBAR1C_BUNDLED_DEPS=ON "-DBUILD_TESTING=${BUILD_TESTING}"
+      COMMAND "${CMAKE_COMMAND}" --build "${other_build}" --config "$<CONFIG>" --parallel 2
+      VERBATIM)
+    list(APPEND package_dependencies build_other_arch)
+    list(APPEND package_arguments "-DOTHER_COMPONENT=${other_build}/$<CONFIG>/ZbarAdd1C.dll")
+  endif()
+  add_custom_target(package_windows ALL
+    COMMAND "${CMAKE_COMMAND}"
+      ${package_arguments}
       "-DDESTINATION=${CMAKE_BINARY_DIR}/dist/$<CONFIG>"
       "-DSOURCE=${CMAKE_SOURCE_DIR}"
       "-DDEPENDENCIES=${CMAKE_BINARY_DIR}/_deps"
       -P "${CMAKE_SOURCE_DIR}/cmake/PackageWindows.cmake"
-    DEPENDS ZbarAdd1C
-    COMMENT "Prepare DLL, 1C Manifest.xml and ZIP bundle"
+    DEPENDS ${package_dependencies}
+    COMMENT "Prepare Windows DLLs, 1C manifest and ZIP bundle"
     VERBATIM)
 endif()

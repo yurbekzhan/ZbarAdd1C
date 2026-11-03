@@ -1,6 +1,6 @@
 # ZbarAdd1C
 
-Внешняя компонента **Native API для 1С, Windows x64**: распознаёт QR-коды в PNG
+Внешняя компонента **Native API для 1С, Windows x86 и x64**: распознаёт QR-коды в PNG
 на основе [mchehab/zbar](https://github.com/mchehab/zbar).
 
 ## Сборка в Visual Studio 2022
@@ -9,22 +9,27 @@
    на C++»**. В ней должны быть MSVC v143 x64, Windows SDK и **средства CMake для Windows**.
 2. Скачайте ZIP репозитория и распакуйте его. В Visual Studio выберите
    **Файл → Открыть → Папка**, укажите каталог с `CMakeLists.txt`.
-3. Выберите конфигурацию **Windows x64 Release (all dependencies included)**
-   (`windows-x64-release`) и дождитесь окончания настройки CMake.
+3. Выберите конфигурацию **Windows x86 + x64 Release (universal 1C package)**
+   (`windows-all-release`) и дождитесь окончания настройки CMake.
 4. Нажмите **Сборка → Собрать всё**.
 
 Не нужно отдельно устанавливать ZBar, libpng, zlib, iconv, Git, Python или
 менеджер пакетов. Полные исходники зависимостей включены в репозиторий;
 проверяются SHA256 и собираются тем же компилятором вместе с проектом.
 После установки инструментов Visual Studio сборка не требует Интернета.
+Установите инструменты MSVC сразу для x86 и x64 (стандартный компонент x64/x86).
+Основная конфигурация собирает x64, затем автоматически запускает MSBuild для
+x86 в отдельном каталоге `other-x86`; вручную переключать архитектуру не нужно.
+Доступны и отдельные конфигурации `windows-x86-release` и `windows-x64-release`.
 
 Результаты обычной сборки:
 
 ```text
-out/build/windows-x64-release/dist/Release/
-    ZbarAdd1C.dll            ← компонента со статически включёнными зависимостями
-    Manifest.xml            ← манифест пакета 1С для Windows x64
-    ZbarAdd1C-win64.zip      ← пакет для загрузки в общий макет
+out/build/windows-all-release/dist/Release/
+    win32/ZbarAdd1C.dll      ← для 32-разрядной 1С
+    win64/ZbarAdd1C.dll      ← для 64-разрядной 1С
+    Manifest.xml            ← описывает обе архитектуры
+    ZbarAdd1C-windows.zip    ← единый пакет для общего макета
     licenses/               ← лицензии зависимостей
     source/                 ← исходники и инструкции для пересборки/перелинковки
 ```
@@ -38,7 +43,7 @@ out/build/windows-x64-release/dist/Release/
 
 ```bat
 cd /d C:\Projects\ZbarAdd1C
-cmake -S . -B build-vs -G "Visual Studio 17 2022" -A x64
+cmake -S . -B build-vs -G "Visual Studio 17 2022" -A x64 -DZBAR1C_DUAL_ARCH=ON
 ```
 
 Откройте `build-vs/ZbarAdd1C.sln`, выберите **Release / x64**, выполните
@@ -48,6 +53,7 @@ cmake -S . -B build-vs -G "Visual Studio 17 2022" -A x64
 ```bat
 cmake --build build-vs --config Release --parallel 2
 ctest --test-dir build-vs -C Release --output-on-failure
+ctest --test-dir build-vs/other-x86 -C Release --output-on-failure
 ```
 
 В **Обозревателе тестов** Visual Studio также доступны `qr_reader` и `native_api`.
@@ -58,12 +64,14 @@ ctest --test-dir build-vs -C Release --output-on-failure
 
 Прямое подключение DLL — [examples/read_qr.bsl](examples/read_qr.bsl).
 Для установки из общего макета создайте макет типа **ДвоичныеДанные**, загрузите
-`ZbarAdd1C-win64.zip` и используйте `ОбщийМакет.<ИмяМакета>` вместо пути DLL
+`ZbarAdd1C-windows.zip` и используйте `ОбщийМакет.<ИмяМакета>` вместо пути DLL
 в вызове `ПодключитьВнешнююКомпоненту`. При необходимости на клиенте сначала
 выполните установку внешней компоненты средствами вашей версии платформы.
 
-Платформа 1С должна быть **64-разрядной**; разрядность ОС сама по себе этого
-не гарантирует. В серверном вызове PNG должен быть доступен на сервере.
+При подключении ZIP из общего макета 1С выбирает DLL по разрядности своего
+процесса. Клиент x86 на Windows x64 использует `win32/ZbarAdd1C.dll`; сервер x64
+использует `win64/ZbarAdd1C.dll`. При прямом подключении DLL путь нужно выбрать
+самостоятельно. Разрядность ОС сама по себе не определяет разрядность 1С. В серверном вызове PNG должен быть доступен на сервере.
 
 Имя класса и расширения — `ZbarQR`. При идентификаторе подключения `Zbar`
 объект создаётся как `Новый("AddIn.Zbar.ZbarQR")`.
@@ -92,8 +100,9 @@ ctest --test-dir build-vs -C Release --output-on-failure
 файлы. `native_api`: динамическая загрузка библиотеки, экспорт, создание/удаление
 объекта, метаданные, память и отказ выделения, Unicode в пути/данных, JSON и ошибки.
 
-[Windows x64 workflow](https://github.com/yurbekzhan/ZbarAdd1C/actions/workflows/windows.yml)
-собирает MSVC Release, запускает оба набора тестов, проверяет зависимости DLL
+[Windows x86/x64 workflow](https://github.com/yurbekzhan/ZbarAdd1C/actions/workflows/windows.yml)
+собирает MSVC Release для обеих архитектур, запускает оба набора тестов
+отдельно для x86 и x64, проверяет зависимости обеих DLL
 и сохраняет ZIP как артефакт. Прохождение тестового хоста не заменяет проверку
 загрузки в реальной платформе 1С. Такая проверка ещё не выполнена.
 

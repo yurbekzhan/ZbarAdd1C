@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity type="win32" name="ZbarAdd1C" version="0.1.0.0" processorArchitecture="amd64"/>
+  <assemblyIdentity type="win32" name="ZbarAdd1C" version="0.1.0.0" processorArchitecture="@ZBAR1C_MANIFEST_ARCH@"/>
   <description>QR recognition Native API component for 1C</description>
 </assembly>
