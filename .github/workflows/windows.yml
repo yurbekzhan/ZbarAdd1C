@@ -17,7 +17,14 @@ jobs:
             exit $buildExitCode
           }
       - name: Functional and Native API tests
-        run: ctest --test-dir build -C Release --output-on-failure
+        shell: pwsh
+        run: |
+          & ctest --test-dir build -C Release --output-on-failure 2>&1 | Tee-Object -Variable testOutput
+          $testExitCode = $LASTEXITCODE
+          if ($testExitCode -ne 0) {
+            $testOutput | Select-Object -Last 50 | ForEach-Object { Write-Output "::error::$_" }
+            exit $testExitCode
+          }
       - name: Check DLL dependencies
         shell: pwsh
         run: |
