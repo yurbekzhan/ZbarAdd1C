@@ -10,7 +10,7 @@ function(select_secondary_visual_studio)
       message(FATAL_ERROR "Cannot identify Visual Studio from compiler: ${compiler}. Use an MSVC preset or a Visual Studio solution.")
     endif()
     set(instance "${CMAKE_MATCH_1}")
-    set(vswhere "$ENV{ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe")
+    set(vswhere "$ENV{ProgramFiles\(x86\)}/Microsoft Visual Studio/Installer/vswhere.exe")
     execute_process(COMMAND "${vswhere}" -all -products * -format json -utf8
       OUTPUT_VARIABLE installations RESULT_VARIABLE result ENCODING UTF-8)
     if(NOT result EQUAL 0)
